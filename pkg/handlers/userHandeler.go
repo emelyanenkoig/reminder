@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-func CreateUser(repo repository.UserRepository) gin.HandlerFunc {
+func CreateUser(repo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var user models.User
 		err := c.ShouldBindJSON(&user)
@@ -27,7 +27,7 @@ func CreateUser(repo repository.UserRepository) gin.HandlerFunc {
 	}
 }
 
-func GetUser(repo repository.UserRepository) gin.HandlerFunc {
+func GetUser(repo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")
 		id, err := strconv.ParseUint(idStr, 10, 32)
@@ -36,7 +36,7 @@ func GetUser(repo repository.UserRepository) gin.HandlerFunc {
 			return
 		}
 
-		user, err := repo.GetUserByID(uint(id))
+		user, err := repo.GetUserById(uint(id))
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return

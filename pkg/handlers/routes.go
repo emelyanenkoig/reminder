@@ -6,9 +6,7 @@ import (
 	"log"
 )
 
-func Run() {
-	userRepo := repository.NewUserRepository()
-	reminderRepo := repository.NewReminderRepository()
+func Run(userRepo *repository.UserRepository, reminderRepo *repository.ReminderRepository) {
 
 	router := gin.Default()
 
@@ -22,6 +20,8 @@ func Run() {
 			reminderGroup.GET("/", GetRemindersByUser(reminderRepo))
 			reminderGroup.POST("/", CreateReminder(reminderRepo))
 			reminderGroup.GET("/:reminder_id", GetUserReminderById(reminderRepo))
+			reminderGroup.PUT("/:reminder_id", UpdateReminder(reminderRepo))
+			reminderGroup.DELETE("/:reminder_id", DeleteReminder(reminderRepo))
 		}
 	}
 	err := router.Run("localhost:8080")

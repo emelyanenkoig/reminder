@@ -1,50 +1,50 @@
 package repository
 
 import (
+	"emelyanenkoig/reminder/pkg/cache"
 	"emelyanenkoig/reminder/pkg/models"
-	"errors"
-	"sync"
+	"gorm.io/gorm"
 )
 
-type UserRepository interface {
-	GetUserByID(userID uint) (*models.User, error)
-	CreateUser(user *models.User) error
+type UserRepository struct {
+	DB    *gorm.DB
+	Cache *cache.Cache
 }
 
-type userRepository struct {
-	users     map[uint]*models.User
-	usersLock sync.RWMutex
-}
-
-func NewUserRepository() UserRepository {
-	return &userRepository{
-		users: make(map[uint]*models.User),
+func NewUserRepository(db *gorm.DB, cache *cache.Cache) *UserRepository {
+	return &UserRepository{
+		DB:    db,
+		Cache: cache,
 	}
 }
 
-func (r *userRepository) GetUserByID(userID uint) (*models.User, error) {
-	r.usersLock.RLock()
-	defer r.usersLock.RUnlock()
-
-	user, ok := r.users[userID]
-	if !ok {
-		return nil, errors.New("user not found")
+func (repo *UserRepository) CreateUser(user *models.User) error {
+	// create user in db
+	err := repo.DB.Create(user).Error
+	if err != nil {
+		return err
 	}
 
-	return user, nil
-}
-
-func (r *userRepository) CreateUser(user *models.User) error {
-	r.usersLock.Lock()
-	defer r.usersLock.Unlock()
-
-	// Check if user already exists
-	if _, ok := r.users[user.ID]; ok {
-		return errors.New("user already exists")
-	}
-
-	// Add user to repository
-	r.users[user.ID] = user
-
+	repo.Cache.AddUser(user)
 	return nil
+
+}
+
+func (repo *UserRepository) GetUserById(userID uint) (*models.User, error) {
+	// lookup cache
+	user, exist := repo.Cache.GetUser(userID)
+	if exist {
+		return user, nil
+	}
+
+	// lookup db
+	user = &models.User{}
+	err := repo.DB.Preload("Reminders").First(user, userID).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// add in cache
+	repo.Cache.AddUser(user)
+	return user, nil
 }

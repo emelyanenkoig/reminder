@@ -1,72 +1,97 @@
 package repository
 
 import (
+	"emelyanenkoig/reminder/pkg/cache"
 	"emelyanenkoig/reminder/pkg/models"
-	"errors"
-	"log"
-	"sync"
+	"gorm.io/gorm"
+	"time"
 )
 
-type ReminderRepository interface {
-	GetUserReminders(userID uint) ([]models.Reminder, error)
-	CreateReminder(userID uint, reminder *models.Reminder) error
-	GetUserReminderByID(userID uint, reminderID uint) (*models.Reminder, error)
+type ReminderRepository struct {
+	DB    *gorm.DB
+	Cache *cache.Cache
 }
 
-type reminderRepository struct {
-	cache  map[uint][]models.Reminder
-	dbLock sync.Mutex
-}
-
-func NewReminderRepository() ReminderRepository {
-	return &reminderRepository{
-		cache: make(map[uint][]models.Reminder),
+func NewReminderRepository(db *gorm.DB, cache *cache.Cache) *ReminderRepository {
+	return &ReminderRepository{
+		DB:    db,
+		Cache: cache,
 	}
 }
 
-func (r *reminderRepository) GetUserReminders(userID uint) ([]models.Reminder, error) {
-	r.dbLock.Lock()
-	defer r.dbLock.Unlock()
+func (repo *ReminderRepository) CreateReminder(reminder *models.Reminder) error {
+	userId := reminder.UserID
+	err := repo.DB.Create(&reminder).Error
+	if err != nil {
+		return err
+	}
 
-	if reminders, ok := r.cache[userID]; ok {
+	repo.Cache.AddReminder(userId, reminder)
+	return nil
+}
+
+func (repo *ReminderRepository) GetReminderByUserId(userId uint, reminderId uint) (*models.Reminder, error) {
+	reminder, found := repo.Cache.GetReminderByUserId(userId, reminderId)
+	if found {
+		return reminder, nil
+	}
+
+	err := repo.DB.Where("user_id = ? AND id = ?", userId, reminderId).First(&reminder).Error
+	if err != nil {
+		return nil, err
+	}
+	return reminder, nil
+}
+
+func (repo *ReminderRepository) GetRemindersByUser(userId uint) ([]models.Reminder, error) {
+	reminders, found := repo.Cache.GetRemindersListByUser(userId)
+	if found {
 		return reminders, nil
 	}
 
-	log.Printf("Reminders for user %d not found in cache, fetching from database...", userID)
-	// В реальном приложении здесь должен быть вызов метода для получения напоминаний из базы данных
-
-	return nil, nil // Placeholder
+	err := repo.DB.Where("user_id = ?", userId).Find(&reminders).Error
+	if err != nil {
+		return nil, err
+	}
+	return reminders, nil
 }
 
-func (r *reminderRepository) GetUserReminderByID(userID uint, reminderID uint) (*models.Reminder, error) {
-	r.dbLock.Lock()
-	defer r.dbLock.Unlock()
-	if reminders, ok := r.cache[userID]; ok {
-		for _, reminder := range reminders {
-			if reminder.ID == reminderID {
-				return &reminder, nil
-			}
+func (repo *ReminderRepository) UpdateReminder(userID uint, reminderID uint, updatedReminder *models.Reminder) error {
+	_, found := repo.Cache.GetReminderByUserId(userID, reminderID)
+	if !found {
+		err := repo.DB.Where("user_id = ? AND id = ?", userID, reminderID).First(updatedReminder).Error
+		if err != nil {
+			return err
 		}
 	}
-	return nil, errors.New("reminder not found")
-}
 
-func (r *reminderRepository) CreateReminder(userID uint, reminder *models.Reminder) error {
-	r.dbLock.Lock()
-	defer r.dbLock.Unlock()
+	updatedReminder.UserID = userID
+	updatedReminder.ID = reminderID
+	updatedReminder.DueDate = time.Now()
 
-	log.Printf("Creating reminder for user %d: %v", userID, reminder)
-	// В реальном приложении здесь должен быть вызов метода для создания напоминания в базе данных
-
-	// Обновляем кэш
-	if _, ok := r.cache[userID]; !ok {
-		reminder.ID = 0
-		r.cache[userID] = []models.Reminder{*reminder}
-	} else {
-		currID := len(r.cache[userID])
-		reminder.ID = uint(currID)
-		r.cache[userID] = append(r.cache[userID], *reminder)
+	err := repo.DB.Model(&models.Reminder{}).
+		Where("user_id = ? AND id = ?", userID, reminderID).
+		Updates(models.Reminder{
+			Title:       updatedReminder.Title,
+			Description: updatedReminder.Description,
+			DueDate:     updatedReminder.DueDate,
+		}).Error
+	if err != nil {
+		return err
 	}
 
+	if found {
+		repo.Cache.DeleteReminder(userID, reminderID)
+	}
+	repo.Cache.AddReminder(userID, updatedReminder)
+	return nil
+}
+
+func (repo *ReminderRepository) DeleteReminder(userID uint, reminderID uint) error {
+	err := repo.DB.Where("user_id = ? AND id = ?", userID, reminderID).Delete(&models.Reminder{}).Error
+	if err != nil {
+		return err
+	}
+	repo.Cache.DeleteReminder(userID, reminderID)
 	return nil
 }

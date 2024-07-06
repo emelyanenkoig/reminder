@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func CreateReminder(repo repository.ReminderRepository) gin.HandlerFunc {
+func CreateReminder(repo *repository.ReminderRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// parse user id
 		userIDStr := c.Param("id")
@@ -30,7 +30,7 @@ func CreateReminder(repo repository.ReminderRepository) gin.HandlerFunc {
 		reminder.CreatedAt = time.Now()
 		reminder.UpdatedAt = time.Now()
 
-		err = repo.CreateReminder(uint(userID), &reminder)
+		err = repo.CreateReminder(&reminder)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create reminder"})
 			return
@@ -40,7 +40,7 @@ func CreateReminder(repo repository.ReminderRepository) gin.HandlerFunc {
 	}
 }
 
-func GetRemindersByUser(repo repository.ReminderRepository) gin.HandlerFunc {
+func GetRemindersByUser(repo *repository.ReminderRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDStr := c.Param("id")
 		userID, err := strconv.ParseUint(userIDStr, 10, 32)
@@ -49,7 +49,7 @@ func GetRemindersByUser(repo repository.ReminderRepository) gin.HandlerFunc {
 			return
 		}
 
-		reminders, err := repo.GetUserReminders(uint(userID))
+		reminders, err := repo.GetRemindersByUser(uint(userID))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reminders"})
 			return
@@ -59,7 +59,7 @@ func GetRemindersByUser(repo repository.ReminderRepository) gin.HandlerFunc {
 	}
 }
 
-func GetUserReminderById(repo repository.ReminderRepository) gin.HandlerFunc {
+func GetUserReminderById(repo *repository.ReminderRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDStr := c.Param("id")
 		userID, err := strconv.ParseUint(userIDStr, 10, 32)
@@ -75,12 +75,69 @@ func GetUserReminderById(repo repository.ReminderRepository) gin.HandlerFunc {
 			return
 		}
 
-		reminder, err := repo.GetUserReminderByID(uint(userID), uint(reminderID))
+		reminder, err := repo.GetReminderByUserId(uint(userID), uint(reminderID))
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Reminder not found"})
 			return
 		}
 
 		c.JSON(http.StatusOK, reminder)
+	}
+}
+
+func UpdateReminder(repo *repository.ReminderRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userIDStr := c.Param("id")
+		userID, err := strconv.ParseUint(userIDStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			return
+		}
+
+		reminderIDStr := c.Param("reminder_id")
+		reminderID, err := strconv.ParseUint(reminderIDStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reminder ID"})
+			return
+		}
+
+		var updatedReminder models.Reminder
+		if err := c.ShouldBindJSON(&updatedReminder); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		err = repo.UpdateReminder(uint(userID), uint(reminderID), &updatedReminder)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reminder"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Reminder updated successfully"})
+	}
+}
+
+func DeleteReminder(repo *repository.ReminderRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userIDStr := c.Param("id")
+		userID, err := strconv.ParseUint(userIDStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			return
+		}
+
+		reminderIDStr := c.Param("reminder_id")
+		reminderID, err := strconv.ParseUint(reminderIDStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reminder ID"})
+			return
+		}
+
+		err = repo.DeleteReminder(uint(userID), uint(reminderID))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete reminder"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Reminder deleted successfully"})
 	}
 }
