@@ -26,7 +26,6 @@ const (
 
 func CreateReminder(repo *repository.ReminderRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// parse user id
 		userIDStr := c.Param("id")
 		userID, err := strconv.ParseUint(userIDStr, 10, 32)
 		if err != nil {

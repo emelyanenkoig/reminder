@@ -70,7 +70,7 @@ func UpdateUser(repo *repository.UserRepository) gin.HandlerFunc {
 		idStr := c.Param("id")
 		userId, err := strconv.ParseUint(idStr, 10, 32)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": errInvalidUserID})
 			return
 		}
 
@@ -78,7 +78,7 @@ func UpdateUser(repo *repository.UserRepository) gin.HandlerFunc {
 		var existingUser models.User
 		err = repo.DB.Where("id = ?", userId).First(&existingUser).Error
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": errUserNotFound})
 			return
 		}
 
@@ -88,7 +88,7 @@ func UpdateUser(repo *repository.UserRepository) gin.HandlerFunc {
 
 		err = repo.UpdateUser(uint(userId), &existingUser)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": errFailedUpdateUser})
 			return
 		}
 
