@@ -3,23 +3,46 @@ package repository
 import (
 	"emelyanenkoig/reminder/pkg/cache"
 	"emelyanenkoig/reminder/pkg/models"
+	"errors"
 	"gorm.io/gorm"
 	"time"
 )
 
-type ReminderRepository struct {
+type ReminderRepository interface {
+	CreateReminder(reminder *models.Reminder) error
+	GetReminderByUserId(userId uint, reminderId uint) (*models.Reminder, error)
+	GetRemindersByUser(userId uint) ([]models.Reminder, error)
+	UpdateReminder(userID uint, reminderID uint, updatedReminder *models.Reminder) error
+	DeleteReminder(userID uint, reminderID uint) error
+}
+
+type reminderRepository struct {
 	DB    *gorm.DB
 	Cache *cache.Cache
 }
 
-func NewReminderRepository(db *gorm.DB, cache *cache.Cache) *ReminderRepository {
-	return &ReminderRepository{
+func NewReminderRepository(db *gorm.DB, cache *cache.Cache) *reminderRepository {
+	return &reminderRepository{
 		DB:    db,
 		Cache: cache,
 	}
 }
 
-func (repo *ReminderRepository) CreateReminder(reminder *models.Reminder) error {
+// Валидация данных напоминания
+func validateReminder(reminder *models.Reminder) error {
+	if reminder.Title == "" {
+		return errors.New("title is required")
+	}
+	if reminder.DueDate.Before(time.Now()) {
+		return errors.New("due date cannot be in the past")
+	}
+	return nil
+}
+
+func (repo *reminderRepository) CreateReminder(reminder *models.Reminder) error {
+	if err := validateReminder(reminder); err != nil {
+		return err
+	}
 	userId := reminder.UserID
 	err := repo.DB.Create(&reminder).Error
 	if err != nil {
@@ -30,7 +53,7 @@ func (repo *ReminderRepository) CreateReminder(reminder *models.Reminder) error 
 	return nil
 }
 
-func (repo *ReminderRepository) GetReminderByUserId(userId uint, reminderId uint) (*models.Reminder, error) {
+func (repo *reminderRepository) GetReminderByUserId(userId uint, reminderId uint) (*models.Reminder, error) {
 	reminder, found := repo.Cache.GetReminderByUserId(userId, reminderId)
 	if found {
 		return reminder, nil
@@ -43,7 +66,7 @@ func (repo *ReminderRepository) GetReminderByUserId(userId uint, reminderId uint
 	return reminder, nil
 }
 
-func (repo *ReminderRepository) GetRemindersByUser(userId uint) ([]models.Reminder, error) {
+func (repo *reminderRepository) GetRemindersByUser(userId uint) ([]models.Reminder, error) {
 	reminders, found := repo.Cache.GetRemindersListByUser(userId)
 	if found {
 		return reminders, nil
@@ -56,7 +79,10 @@ func (repo *ReminderRepository) GetRemindersByUser(userId uint) ([]models.Remind
 	return reminders, nil
 }
 
-func (repo *ReminderRepository) UpdateReminder(userID uint, reminderID uint, updatedReminder *models.Reminder) error {
+func (repo *reminderRepository) UpdateReminder(userID uint, reminderID uint, updatedReminder *models.Reminder) error {
+	if err := validateReminder(updatedReminder); err != nil {
+		return err
+	}
 	_, found := repo.Cache.GetReminderByUserId(userID, reminderID)
 	if !found {
 		err := repo.DB.Where("user_id = ? AND id = ?", userID, reminderID).First(updatedReminder).Error
@@ -89,11 +115,11 @@ func (repo *ReminderRepository) UpdateReminder(userID uint, reminderID uint, upd
 	return nil
 }
 
-func (repo *ReminderRepository) DeleteReminder(userID uint, reminderID uint) error {
+func (repo *reminderRepository) DeleteReminder(userID uint, reminderID uint) error {
 	err := repo.DB.Where("user_id = ? AND id = ?", userID, reminderID).Delete(&models.Reminder{}).Error
 	if err != nil {
 		return err
 	}
-	go repo.Cache.DeleteReminder(userID, reminderID)
-	return nil
+	repo.Cache.DeleteReminder(userID, reminderID)
+	return err
 }

@@ -6,19 +6,27 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserRepository struct {
+type UserRepository interface {
+	CreateUser(user *models.User) error
+	GetUserById(userID uint) (*models.User, error)
+	GetUsers() ([]models.User, error)
+	UpdateUser(userID uint, updatedUser *models.User) error
+	DeleteUser(userID uint) error
+}
+
+type userRepository struct {
 	DB    *gorm.DB
 	Cache *cache.Cache
 }
 
-func NewUserRepository(db *gorm.DB, cache *cache.Cache) *UserRepository {
-	return &UserRepository{
+func NewUserRepository(db *gorm.DB, cache *cache.Cache) *userRepository {
+	return &userRepository{
 		DB:    db,
 		Cache: cache,
 	}
 }
 
-func (repo *UserRepository) CreateUser(user *models.User) error {
+func (repo *userRepository) CreateUser(user *models.User) error {
 	if err := repo.DB.Create(user).Error; err != nil {
 		return err
 	}
@@ -26,7 +34,7 @@ func (repo *UserRepository) CreateUser(user *models.User) error {
 	return nil
 }
 
-func (repo *UserRepository) GetUserById(userID uint) (*models.User, error) {
+func (repo *userRepository) GetUserById(userID uint) (*models.User, error) {
 	if user, exist := repo.Cache.GetUser(userID); exist {
 		return user, nil
 	}
@@ -39,7 +47,7 @@ func (repo *UserRepository) GetUserById(userID uint) (*models.User, error) {
 	return user, nil
 }
 
-func (repo *UserRepository) GetUsers() ([]models.User, error) {
+func (repo *userRepository) GetUsers() ([]models.User, error) {
 	users := repo.Cache.GetUsers()
 	if len(users) > 0 {
 		return users, nil
@@ -59,7 +67,7 @@ func (repo *UserRepository) GetUsers() ([]models.User, error) {
 	return dbUsers, nil
 }
 
-func (repo *UserRepository) UpdateUser(userID uint, updatedUser *models.User) error {
+func (repo *userRepository) UpdateUser(userID uint, updatedUser *models.User) error {
 	// Update user in the DB
 	err := repo.DB.Save(updatedUser).Error
 	if err != nil {
@@ -82,9 +90,13 @@ func (repo *UserRepository) UpdateUser(userID uint, updatedUser *models.User) er
 	return nil
 }
 
-func (repo *UserRepository) DeleteUser(userID uint) error {
-	user := models.User{ID: userID}
+func (repo *userRepository) DeleteUser(userID uint) error {
+	// Удаление связанных напоминаний
+	if err := repo.DB.Where("user_id = ?", userID).Delete(&models.Reminder{}).Error; err != nil {
+		return err
+	}
 
+	user := models.User{ID: userID}
 	if err := repo.DB.Delete(&user).Error; err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-func CreateUser(repo *repository.UserRepository) gin.HandlerFunc {
+func CreateUser(repo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var user models.User
 		err := c.ShouldBindJSON(&user)
@@ -27,7 +27,7 @@ func CreateUser(repo *repository.UserRepository) gin.HandlerFunc {
 	}
 }
 
-func GetUser(repo *repository.UserRepository) gin.HandlerFunc {
+func GetUser(repo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")
 		id, err := strconv.ParseUint(idStr, 10, 32)
@@ -46,7 +46,7 @@ func GetUser(repo *repository.UserRepository) gin.HandlerFunc {
 	}
 }
 
-func GetUsers(repo *repository.UserRepository) gin.HandlerFunc {
+func GetUsers(repo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		users, err := repo.GetUsers()
 		if err != nil {
@@ -58,7 +58,7 @@ func GetUsers(repo *repository.UserRepository) gin.HandlerFunc {
 	}
 }
 
-func UpdateUser(repo *repository.UserRepository) gin.HandlerFunc {
+func UpdateUser(repo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var user models.User
 		err := c.ShouldBindJSON(&user)
@@ -75,8 +75,7 @@ func UpdateUser(repo *repository.UserRepository) gin.HandlerFunc {
 		}
 
 		// Load user from DB to ensure all fields are present and current
-		var existingUser models.User
-		err = repo.DB.Where("id = ?", userId).First(&existingUser).Error
+		existingUser, err := repo.GetUserById(uint(userId))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": errUserNotFound})
 			return
@@ -86,7 +85,7 @@ func UpdateUser(repo *repository.UserRepository) gin.HandlerFunc {
 		existingUser.Username = user.Username
 		existingUser.Reminders = user.Reminders
 
-		err = repo.UpdateUser(uint(userId), &existingUser)
+		err = repo.UpdateUser(uint(userId), existingUser)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": errFailedUpdateUser})
 			return
@@ -96,7 +95,7 @@ func UpdateUser(repo *repository.UserRepository) gin.HandlerFunc {
 	}
 }
 
-func DeleteUser(repo *repository.UserRepository) gin.HandlerFunc {
+func DeleteUser(repo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDStr := c.Param("id")
 		userID, err := strconv.ParseUint(userIDStr, 10, 32)

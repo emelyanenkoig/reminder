@@ -24,7 +24,7 @@ const (
 	errFailedDeleteReminder = "Failed to delete reminder"
 )
 
-func CreateReminder(repo *repository.ReminderRepository) gin.HandlerFunc {
+func CreateReminder(repo repository.ReminderRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDStr := c.Param("id")
 		userID, err := strconv.ParseUint(userIDStr, 10, 32)
@@ -54,7 +54,7 @@ func CreateReminder(repo *repository.ReminderRepository) gin.HandlerFunc {
 	}
 }
 
-func GetRemindersByUser(repo *repository.ReminderRepository) gin.HandlerFunc {
+func GetRemindersByUser(repo repository.ReminderRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDStr := c.Param("id")
 		userID, err := strconv.ParseUint(userIDStr, 10, 32)
@@ -73,7 +73,7 @@ func GetRemindersByUser(repo *repository.ReminderRepository) gin.HandlerFunc {
 	}
 }
 
-func GetUserReminderById(repo *repository.ReminderRepository) gin.HandlerFunc {
+func GetUserReminderById(repo repository.ReminderRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDStr := c.Param("id")
 		userID, err := strconv.ParseUint(userIDStr, 10, 32)
@@ -99,7 +99,7 @@ func GetUserReminderById(repo *repository.ReminderRepository) gin.HandlerFunc {
 	}
 }
 
-func UpdateReminder(repo *repository.ReminderRepository) gin.HandlerFunc {
+func UpdateReminder(repo repository.ReminderRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDStr := c.Param("id")
 		userID, err := strconv.ParseUint(userIDStr, 10, 32)
@@ -131,7 +131,7 @@ func UpdateReminder(repo *repository.ReminderRepository) gin.HandlerFunc {
 	}
 }
 
-func DeleteReminder(repo *repository.ReminderRepository) gin.HandlerFunc {
+func DeleteReminder(repo repository.ReminderRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDStr := c.Param("id")
 		userID, err := strconv.ParseUint(userIDStr, 10, 32)

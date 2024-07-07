@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-func Run(userRepo *repository.UserRepository, reminderRepo *repository.ReminderRepository, host string, port int) {
+func Run(userRepo repository.UserRepository, reminderRepo repository.ReminderRepository, host string, port int) {
 
 	router := gin.Default()
 
