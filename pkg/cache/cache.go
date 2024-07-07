@@ -35,30 +35,26 @@ func (c *Cache) AddReminder(userid uint, reminder *models.Reminder) {
 	c.users[userid].Reminders = append(c.users[userid].Reminders, *reminder)
 }
 
-func (c *Cache) GetReminderByUserId(reminderId uint, userId uint) (*models.Reminder, bool) {
+func (c *Cache) GetReminderByUserId(userID uint, reminderID uint) (*models.Reminder, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	user, found := c.GetUser(userId)
-	if found {
+	if user, found := c.users[userID]; found {
 		for _, reminder := range user.Reminders {
-			if reminder.ID == reminderId {
+			if reminder.ID == reminderID {
 				return &reminder, true
 			}
 		}
 	}
 	return nil, false
-
 }
 
-func (c *Cache) GetRemindersListByUser(userId uint) ([]models.Reminder, bool) {
+func (c *Cache) GetRemindersListByUser(userID uint) ([]models.Reminder, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	user, found := c.GetUser(userId)
-	if found {
-		return user.Reminders, false
+	if user, found := c.users[userID]; found {
+		return user.Reminders, true
 	}
 	return nil, false
-
 }
 
 func (c *Cache) DeleteReminder(userId uint, reminderId uint) {

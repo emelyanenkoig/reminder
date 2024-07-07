@@ -19,7 +19,7 @@ func CreateUser(repo *repository.UserRepository) gin.HandlerFunc {
 
 		err = repo.CreateUser(&user)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": errFailedCreateUser})
 			return
 		}
 
@@ -32,13 +32,13 @@ func GetUser(repo *repository.UserRepository) gin.HandlerFunc {
 		idStr := c.Param("id")
 		id, err := strconv.ParseUint(idStr, 10, 32)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": errInvalidUserID})
 			return
 		}
 
 		user, err := repo.GetUserById(uint(id))
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": errUserNotFound})
 			return
 		}
 

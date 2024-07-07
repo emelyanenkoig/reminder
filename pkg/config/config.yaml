@@ -1,0 +1,11 @@
+database:
+  host: localhost
+  user: postgres
+  password: postgres
+  dbname: reminder
+  port: 5432
+  sslmode: disable
+
+server:
+  host: localhost
+  port: 8080

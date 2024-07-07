@@ -26,7 +26,7 @@ func (repo *ReminderRepository) CreateReminder(reminder *models.Reminder) error 
 		return err
 	}
 
-	repo.Cache.AddReminder(userId, reminder)
+	go repo.Cache.AddReminder(userId, reminder)
 	return nil
 }
 
@@ -80,10 +80,12 @@ func (repo *ReminderRepository) UpdateReminder(userID uint, reminderID uint, upd
 		return err
 	}
 
-	if found {
-		repo.Cache.DeleteReminder(userID, reminderID)
-	}
-	repo.Cache.AddReminder(userID, updatedReminder)
+	go func() {
+		if found {
+			repo.Cache.DeleteReminder(userID, reminderID)
+		}
+		repo.Cache.AddReminder(userID, updatedReminder)
+	}()
 	return nil
 }
 
@@ -92,6 +94,6 @@ func (repo *ReminderRepository) DeleteReminder(userID uint, reminderID uint) err
 	if err != nil {
 		return err
 	}
-	repo.Cache.DeleteReminder(userID, reminderID)
+	go repo.Cache.DeleteReminder(userID, reminderID)
 	return nil
 }

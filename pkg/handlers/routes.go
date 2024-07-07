@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"emelyanenkoig/reminder/pkg/repository"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"log"
 )
 
-func Run(userRepo *repository.UserRepository, reminderRepo *repository.ReminderRepository) {
+func Run(userRepo *repository.UserRepository, reminderRepo *repository.ReminderRepository, host string, port int) {
 
 	router := gin.Default()
 
@@ -24,7 +25,7 @@ func Run(userRepo *repository.UserRepository, reminderRepo *repository.ReminderR
 			reminderGroup.DELETE("/:reminder_id", DeleteReminder(reminderRepo))
 		}
 	}
-	err := router.Run("localhost:8080")
+	err := router.Run(fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		log.Fatal(err)
 	}
