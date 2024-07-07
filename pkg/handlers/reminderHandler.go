@@ -12,6 +12,9 @@ import (
 const (
 	errInvalidUserID        = "Invalid user ID"
 	errFailedCreateUser     = "Failed to create user"
+	errFailedUpdateUser     = "Failed to update user"
+	errFailedDeleteUser     = "Failed to delete user"
+	errFailedFetchUsers     = "Failed to fetch users"
 	errUserNotFound         = "User not found"
 	errInvalidReminderID    = "Invalid reminder ID"
 	errFailedCreateReminder = "Failed to create reminder"

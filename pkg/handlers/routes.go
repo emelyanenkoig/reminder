@@ -15,6 +15,9 @@ func Run(userRepo *repository.UserRepository, reminderRepo *repository.ReminderR
 	{
 		userGroup.GET("/:id", GetUser(userRepo))
 		userGroup.POST("/", CreateUser(userRepo))
+		userGroup.PUT("/:id", UpdateUser(userRepo))
+		userGroup.DELETE("/:id", DeleteUser(userRepo))
+		userGroup.GET("/", GetUsers(userRepo))
 
 		reminderGroup := userGroup.Group("/:id/reminders")
 		{

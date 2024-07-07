@@ -26,7 +26,27 @@ func (c *Cache) GetUser(id uint) (*models.User, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	user, exist := c.users[id]
-	return user, exist
+	if exist {
+		return user, true
+	}
+	return nil, false
+}
+
+func (c *Cache) GetUsers() []models.User {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	users := make([]models.User, 0, len(c.users))
+	for _, user := range c.users {
+		users = append(users, *user)
+	}
+	return users
+}
+
+func (c *Cache) DeleteUser(userId uint) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.users, userId)
 }
 
 func (c *Cache) AddReminder(userid uint, reminder *models.Reminder) {
