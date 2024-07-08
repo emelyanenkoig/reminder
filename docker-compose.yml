@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reminder
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - reminder-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_DBNAME=reminder
+      - DATABASE_PORT=5432
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - reminder-network
+
+networks:
+  reminder-network:
+
+volumes:
+  postgres_data:
