@@ -1,6 +1,9 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"os"
+	"strconv"
+)
 
 type Config struct {
 	Database DatabaseConfig
@@ -22,18 +25,30 @@ type ServerConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("pkg/config/")
-
-	if err := viper.ReadInConfig(); err != nil {
+	port, err := strconv.Atoi(os.Getenv("DATABASE_PORT"))
+	if err != nil {
 		return nil, err
 	}
 
-	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
+	serverPort, err := strconv.Atoi(os.Getenv("SERVER_PORT"))
+	if err != nil {
 		return nil, err
 	}
 
-	return &config, nil
+	config := &Config{
+		Database: DatabaseConfig{
+			Host:     os.Getenv("DATABASE_HOST"),
+			User:     os.Getenv("DATABASE_USER"),
+			Password: os.Getenv("DATABASE_PASSWORD"),
+			DBName:   os.Getenv("DATABASE_DBNAME"),
+			Port:     port,
+			SSLMode:  os.Getenv("DATABASE_SSLMODE"),
+		},
+		Server: ServerConfig{
+			Host: os.Getenv("SERVER_HOST"),
+			Port: serverPort,
+		},
+	}
+
+	return config, nil
 }

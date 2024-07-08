@@ -8,6 +8,8 @@ RUN apk update && apk add --no-cache git
 WORKDIR /app
 
 # Копируем файлы в контейнер
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
 
 # Сборка Go-приложения
@@ -24,9 +26,6 @@ WORKDIR /root/
 
 # Копируем собранное приложение из предыдущего этапа
 COPY --from=builder /app/reminder .
-
-# Копируем файл конфигурации
-COPY pkg/config/config.yaml /root/pkg/config/config.yaml
 
 # Экспонируем порт, который используется приложением
 EXPOSE 8080
