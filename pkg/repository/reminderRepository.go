@@ -93,7 +93,7 @@ func (repo *reminderRepository) UpdateReminder(userID uint, reminderID uint, upd
 
 	updatedReminder.UserID = userID
 	updatedReminder.ID = reminderID
-	updatedReminder.DueDate = time.Now()
+	updatedReminder.DueDate = time.Now().Add(time.Hour * 24)
 
 	err := repo.DB.Model(&models.Reminder{}).
 		Where("user_id = ? AND id = ?", userID, reminderID).

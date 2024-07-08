@@ -3,6 +3,7 @@ package repository
 import (
 	"emelyanenkoig/reminder/pkg/cache"
 	"emelyanenkoig/reminder/pkg/models"
+	"errors"
 	"gorm.io/gorm"
 )
 
@@ -28,7 +29,7 @@ func NewUserRepository(db *gorm.DB, cache *cache.Cache) *userRepository {
 
 func (repo *userRepository) CreateUser(user *models.User) error {
 	if err := repo.DB.Create(user).Error; err != nil {
-		return err
+		return errors.New("user could not be created, already exists")
 	}
 	go repo.Cache.AddUser(user)
 	return nil

@@ -52,3 +52,20 @@ func LoadConfig() (*Config, error) {
 
 	return config, nil
 }
+
+func LoadLocalConfig() *Config {
+	return &Config{
+		Database: DatabaseConfig{
+			Host:     "localhost",
+			User:     "postgres",
+			Password: "postgres",
+			DBName:   "reminder",
+			Port:     5432,
+			SSLMode:  "disable",
+		},
+		Server: ServerConfig{
+			Host: "localhost",
+			Port: 8080,
+		},
+	}
+}
