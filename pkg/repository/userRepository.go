@@ -7,14 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserRepository interface {
-	CreateUser(user *models.User) error
-	GetUserById(userID uint) (*models.User, error)
-	GetUsers() ([]models.User, error)
-	UpdateUser(userID uint, updatedUser *models.User) error
-	DeleteUser(userID uint) error
-}
-
 type userRepository struct {
 	DB    *gorm.DB
 	Cache *cache.Cache

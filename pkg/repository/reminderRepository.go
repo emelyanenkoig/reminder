@@ -8,14 +8,6 @@ import (
 	"time"
 )
 
-type ReminderRepository interface {
-	CreateReminder(reminder *models.Reminder) error
-	GetReminderByUserId(userId uint, reminderId uint) (*models.Reminder, error)
-	GetRemindersByUser(userId uint) ([]models.Reminder, error)
-	UpdateReminder(userID uint, reminderID uint, updatedReminder *models.Reminder) error
-	DeleteReminder(userID uint, reminderID uint) error
-}
-
 type reminderRepository struct {
 	DB    *gorm.DB
 	Cache *cache.Cache
@@ -83,34 +75,27 @@ func (repo *reminderRepository) UpdateReminder(userID uint, reminderID uint, upd
 	if err := validateReminder(updatedReminder); err != nil {
 		return err
 	}
-	_, found := repo.Cache.GetReminderByUserId(userID, reminderID)
-	if !found {
-		err := repo.DB.Where("user_id = ? AND id = ?", userID, reminderID).First(updatedReminder).Error
-		if err != nil {
-			return err
-		}
+
+	var existingReminder models.Reminder
+	err := repo.DB.Where("user_id = ? AND id = ?", userID, reminderID).First(&existingReminder).Error
+	if err != nil {
+		return err
 	}
 
-	updatedReminder.UserID = userID
-	updatedReminder.ID = reminderID
-	updatedReminder.DueDate = time.Now().Add(time.Hour * 24)
+	existingReminder.Title = updatedReminder.Title
+	existingReminder.Description = updatedReminder.Description
+	existingReminder.DueDate = updatedReminder.DueDate
 
-	err := repo.DB.Model(&models.Reminder{}).
+	err = repo.DB.Model(&models.Reminder{}).
 		Where("user_id = ? AND id = ?", userID, reminderID).
-		Updates(models.Reminder{
-			Title:       updatedReminder.Title,
-			Description: updatedReminder.Description,
-			DueDate:     updatedReminder.DueDate,
-		}).Error
+		Updates(existingReminder).Error
 	if err != nil {
 		return err
 	}
 
 	go func() {
-		if found {
-			repo.Cache.DeleteReminder(userID, reminderID)
-		}
-		repo.Cache.AddReminder(userID, updatedReminder)
+		repo.Cache.DeleteReminder(userID, reminderID)
+		repo.Cache.AddReminder(userID, &existingReminder)
 	}()
 	return nil
 }
@@ -121,5 +106,5 @@ func (repo *reminderRepository) DeleteReminder(userID uint, reminderID uint) err
 		return err
 	}
 	repo.Cache.DeleteReminder(userID, reminderID)
-	return err
+	return nil
 }

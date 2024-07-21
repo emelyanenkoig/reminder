@@ -8,6 +8,7 @@ import (
 type Config struct {
 	Database DatabaseConfig
 	Server   ServerConfig
+	Bot      BotConfig
 }
 
 type DatabaseConfig struct {
@@ -22,6 +23,11 @@ type DatabaseConfig struct {
 type ServerConfig struct {
 	Host string
 	Port int
+}
+
+type BotConfig struct {
+	TelegramToken string `mapstructure:"telegram_token"`
+	APIBaseURL    string `mapstructure:"api_base_url"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -66,6 +72,10 @@ func LoadLocalConfig() *Config {
 		Server: ServerConfig{
 			Host: "localhost",
 			Port: 8080,
+		},
+		Bot: BotConfig{
+			TelegramToken: "tlgtoken",
+			APIBaseURL:    "apibaseurl",
 		},
 	}
 }

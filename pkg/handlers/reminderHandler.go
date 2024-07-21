@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 const (
@@ -41,8 +40,6 @@ func CreateReminder(repo repository.ReminderRepository) gin.HandlerFunc {
 		}
 
 		reminder.UserID = uint(userID)
-		reminder.CreatedAt = time.Now()
-		reminder.UpdatedAt = time.Now()
 
 		err = repo.CreateReminder(&reminder)
 		if err != nil {
