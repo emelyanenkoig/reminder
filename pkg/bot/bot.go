@@ -37,19 +37,15 @@ func NewBot(userService *services.UserService, reminderService *services.Reminde
 	b.Handle("/start", bot.HandleStart())
 	b.Handle("/get_user", bot.HandleGetUser())
 	b.Handle("/add_reminder", bot.HandleAddReminder())
-	b.Handle("/get_reminders", bot.HandleGetReminders())
-	b.Handle("/get_reminder", bot.HandleGetReminder())
-	b.Handle("/update_reminder", bot.HandleUpdateReminder())
-	b.Handle("/delete_reminder", bot.HandleDeleteReminder())
+	b.Handle("/list_reminders", bot.HandleListReminders())
 
 	b.Handle(telebot.OnCallback, bot.HandleCallback())
 	b.Handle(telebot.OnText, bot.HandleText())
-	b.Handle(telebot.OnText, bot.HandleDeleteText())
-	b.Handle(telebot.OnText, bot.HandleUpdateText())
 
 	return bot, nil
 }
 
+// Start запускает бота
 func (b *Bot) Start() {
 	log.Println("Starting bot...")
 	b.Bot.Start()
