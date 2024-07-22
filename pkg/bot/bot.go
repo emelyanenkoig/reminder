@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"emelyanenkoig/reminder/pkg/config"
 	"emelyanenkoig/reminder/pkg/services"
 	"gopkg.in/telebot.v3"
 	"log"
@@ -16,11 +17,11 @@ type Bot struct {
 }
 
 // NewBot создает новый экземпляр бота
-func NewBot(userService *services.UserService, reminderService *services.ReminderService) (*Bot, error) {
-	botToken := "5621569001:AAF4zzjbRSON21P43bxgM95HLDGpr7WzZV8"
+func NewBot(userService *services.UserService, reminderService *services.ReminderService, config config.Config) (*Bot, error) {
+	//botToken := "5621569001:AAF4zzjbRSON21P43bxgM95HLDGpr7WzZV8"
 
 	b, err := telebot.NewBot(telebot.Settings{
-		Token:  botToken,
+		Token:  config.Bot.Token,
 		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 	})
 	if err != nil {
@@ -35,11 +36,11 @@ func NewBot(userService *services.UserService, reminderService *services.Reminde
 	}
 
 	b.Handle("/start", bot.HandleStart())
-	b.Handle("/get_user", bot.HandleGetUser())
-	b.Handle("/add_reminder", bot.HandleAddReminder())
-	b.Handle("/list_reminders", bot.HandleListReminders())
-	b.Handle("/delete_reminder", bot.HandleDeleteReminder()) // Добавили здесь
-	b.Handle("/update_reminder", bot.HandleUpdateReminder()) // Добавляем обновление
+	b.Handle("/get", bot.HandleGetUser())
+	b.Handle("/add", bot.HandleAddReminder())
+	b.Handle("/list", bot.HandleListReminders())
+	b.Handle("/delete", bot.HandleDeleteReminder()) // Добавили здесь
+	b.Handle("/update", bot.HandleUpdateReminder()) // Добавляем обновление
 
 	b.Handle(telebot.OnCallback, bot.HandleCallback())
 	b.Handle(telebot.OnText, bot.HandleText())

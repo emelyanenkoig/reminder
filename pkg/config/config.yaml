@@ -11,5 +11,4 @@ server:
   port: 8080
 
 bot:
-  tlgtoken:
-  apibaseurl:
+  token: 5621569001:AAF4zzjbRSON21P43bxgM95HLDGpr7WzZV8

@@ -3,40 +3,33 @@ version: '3.8'
 services:
   db:
     image: postgres:13
+    container_name: reminder_db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: reminder
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - reminder-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
-  app:
+  bot:
     build: .
+    container_name: reminder_bot
     environment:
-      - DATABASE_HOST=db
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=postgres
-      - DATABASE_DBNAME=reminder
-      - DATABASE_PORT=5432
-      - SERVER_HOST=0.0.0.0
-      - SERVER_PORT=8080
+      DATABASE_HOST: db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_DBNAME: reminder
+      DATABASE_PORT: 5432
+      DATABASE_SSLMODE: disable
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      BOT_TOKEN: 5621569001:AAF4zzjbRSON21P43bxgM95HLDGpr7WzZV8
+    depends_on:
+      - db
     ports:
       - "8080:8080"
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - reminder-network
-
-networks:
-  reminder-network:
 
 volumes:
-  postgres_data:
+  db_data:

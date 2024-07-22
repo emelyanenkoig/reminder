@@ -26,8 +26,7 @@ type ServerConfig struct {
 }
 
 type BotConfig struct {
-	TelegramToken string `mapstructure:"telegram_token"`
-	APIBaseURL    string `mapstructure:"api_base_url"`
+	Token string `mapstructure:"token"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -54,11 +53,13 @@ func LoadConfig() (*Config, error) {
 			Host: os.Getenv("SERVER_HOST"),
 			Port: serverPort,
 		},
+		Bot: BotConfig{
+			Token: os.Getenv("BOT_TOKEN"),
+		},
 	}
 
 	return config, nil
 }
-
 func LoadLocalConfig() *Config {
 	return &Config{
 		Database: DatabaseConfig{
@@ -74,8 +75,7 @@ func LoadLocalConfig() *Config {
 			Port: 8080,
 		},
 		Bot: BotConfig{
-			TelegramToken: "tlgtoken",
-			APIBaseURL:    "apibaseurl",
+			Token: "token",
 		},
 	}
 }

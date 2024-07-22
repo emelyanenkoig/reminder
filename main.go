@@ -13,11 +13,11 @@ import (
 )
 
 func main() {
-	//cfg, err := config.LoadConfig()
-	//if err != nil {
-	//	log.Fatalf("Failed to load config: %v", err)
-	//}
-	cfg := config.LoadLocalConfig()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+	//cfg := config.LoadLocalConfig()
 
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=%s",
 		cfg.Database.Host, cfg.Database.User,
@@ -32,7 +32,7 @@ func main() {
 	userService := services.NewUserService(userRepo)
 	reminderService := services.NewReminderService(reminderRepo)
 
-	myBot, err := bot.NewBot(userService, reminderService)
+	myBot, err := bot.NewBot(userService, reminderService, *cfg)
 	if err != nil {
 		log.Fatalf("Failed to create bot: %v", err)
 	}
