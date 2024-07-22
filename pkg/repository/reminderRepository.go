@@ -83,7 +83,6 @@ func (repo *reminderRepository) UpdateReminder(userID uint, reminderID uint, upd
 	}
 
 	existingReminder.Title = updatedReminder.Title
-	existingReminder.Description = updatedReminder.Description
 	existingReminder.DueDate = updatedReminder.DueDate
 
 	err = repo.DB.Model(&models.Reminder{}).

@@ -38,6 +38,8 @@ func NewBot(userService *services.UserService, reminderService *services.Reminde
 	b.Handle("/get_user", bot.HandleGetUser())
 	b.Handle("/add_reminder", bot.HandleAddReminder())
 	b.Handle("/list_reminders", bot.HandleListReminders())
+	b.Handle("/delete_reminder", bot.HandleDeleteReminder()) // Добавили здесь
+	b.Handle("/update_reminder", bot.HandleUpdateReminder()) // Добавляем обновление
 
 	b.Handle(telebot.OnCallback, bot.HandleCallback())
 	b.Handle(telebot.OnText, bot.HandleText())

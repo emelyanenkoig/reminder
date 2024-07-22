@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"gopkg.in/telebot.v3"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,9 +18,14 @@ type UserState struct {
 }
 
 const (
-	StateCreatingTitle = "creating_title"
-	StateSettingDate   = "setting_date"
-	StateSettingTime   = "setting_time"
+	StateCreatingTitle    = "creating_title"
+	StateSettingDate      = "setting_date"
+	StateSettingTime      = "setting_time"
+	StateDeletingReminder = "deleting_reminder"
+
+	StateUpdatingReminderTitle = "updating_reminder_title"
+	StateUpdatingReminderDate  = "updating_reminder_date"
+	StateUpdatingReminderTime  = "updating_reminder_time"
 )
 
 func (b *Bot) HandleStart() telebot.HandlerFunc {
@@ -59,6 +66,35 @@ func (b *Bot) HandleAddReminder() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
 		b.userStates[c.Chat().ID] = &UserState{State: StateCreatingTitle}
 		return c.Send("Введите название напоминания.")
+	}
+}
+
+func (b *Bot) HandleUpdateReminder() telebot.HandlerFunc {
+	return func(c telebot.Context) error {
+		userID := uint(c.Sender().ID)
+
+		user, err := b.userService.GetUserByID(userID)
+		if err != nil {
+			log.Println("Error getting user:", err)
+			return c.Send("Пользователь не найден.")
+		}
+
+		if len(user.Reminders) == 0 {
+			return c.Send("У вас нет напоминаний для обновления.")
+		}
+
+		b.userStates[c.Chat().ID] = &UserState{State: StateUpdatingReminderTitle}
+		var buttons [][]telebot.InlineButton
+
+		for _, reminder := range user.Reminders {
+			buttons = append(buttons, []telebot.InlineButton{
+				{Text: reminder.Title, Data: fmt.Sprintf("update_%d", reminder.ID)},
+			})
+		}
+
+		return c.Send("Выберите напоминание для обновления:", &telebot.ReplyMarkup{
+			InlineKeyboard: buttons,
+		})
 	}
 }
 
@@ -124,6 +160,53 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 
 			delete(b.userStates, chatID)
 			return c.Send(fmt.Sprintf("Напоминание создано\nНазвание: %s\nДата: %s", reminder.Title, reminder.DueDate.Format("2006-01-02 15:04")))
+		case StateUpdatingReminderTitle:
+			newTitle := c.Text()
+			userState.Title = newTitle
+			userState.State = StateUpdatingReminderDate
+			return c.Send("Введите новую дату для напоминания (ГГГГ-ММ-ДД):")
+		case StateUpdatingReminderDate:
+			newDate := c.Text()
+			_, err := time.Parse("2006-01-02", newDate)
+			if err != nil {
+				return c.Send("Неверный формат даты. Пожалуйста, используйте ГГГГ-ММ-ДД.")
+			}
+			userState.DateTime = newDate
+			userState.State = StateUpdatingReminderTime
+			return c.Send("Введите новое время для напоминания (ЧЧ:ММ):")
+		case StateUpdatingReminderTime:
+			newTime := c.Text()
+			_, err := time.Parse("15:04", newTime)
+			if err != nil {
+				return c.Send("Неверный формат времени. Пожалуйста, используйте ЧЧ:ММ.")
+			}
+			userState.DateTime = fmt.Sprintf("%s %s", userState.DateTime, newTime)
+
+			// Преобразование строки в время в местном времени
+			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, time.Local)
+			if err != nil {
+				return c.Send("Не удалось разобрать дату и время.")
+			}
+
+			reminder := &models.Reminder{
+				ID:      uint(userState.ReminderID),
+				UserID:  userID,
+				Title:   userState.Title,
+				DueDate: dueDateTime,
+			}
+
+			err = b.reminderService.UpdateReminder(userID, reminder.ID, reminder) //
+			if err != nil {
+				log.Println("Error updating reminder:", err)
+				return c.Send("Не удалось обновить напоминание: " + err.Error())
+			}
+
+			// Запланируйте обновленное напоминание
+			b.scheduleReminder(reminder)
+
+			delete(b.userStates, chatID)
+			return c.Send(fmt.Sprintf("Напоминание обновлено\nНазвание: %s\nДата: %s", reminder.Title, reminder.DueDate.Format("2006-01-02 15:04")))
+
 		default:
 			return c.Send("Неизвестное состояние. Используйте /add_reminder для создания напоминания.")
 		}
@@ -162,8 +245,13 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			userState.State = StateSettingTime
 			return c.Send("Выберите время из предложенных вариантов или введите свое.", &telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
-					{{Text: "🌅 09:00", Data: "09:00"}, {Text: "☀️ 12:00", Data: "12:00"}, {Text: "☀️ 15:00", Data: "15:00"}, {Text: "🌆 18:00", Data: "18:00"}},
-				},
+					{
+						{Text: "🌅 09:00", Data: "09:00"},
+						{Text: "☀️ 12:00", Data: "12:00"},
+						{Text: "☀️ 15:00", Data: "15:00"},
+						{Text: "🌆 18:00", Data: "18:00"},
+					},
+				}, OneTimeKeyboard: true,
 			})
 		case StateSettingTime:
 			newTimeStr := data
@@ -195,9 +283,38 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 
 			delete(b.userStates, chatID)
 			return c.Send(fmt.Sprintf("Напоминание создано\nНазвание: %s\nДата: %s", reminder.Title, reminder.DueDate.Format("2006-01-02 15:04")))
+		case StateDeletingReminder:
+			if strings.HasPrefix(data, "delete_") {
+				userID := uint(c.Sender().ID)
+				reminderIDStr := strings.TrimPrefix(data, "delete_")
+				reminderID, err := strconv.Atoi(reminderIDStr)
+				if err != nil {
+					return c.Send("Ошибка при разборе ID напоминания.")
+				}
+
+				err = b.reminderService.DeleteReminder(userID, uint(reminderID))
+				if err != nil {
+					return c.Send("Не удалось удалить напоминание: " + err.Error())
+				}
+
+				delete(b.userStates, chatID)
+				return c.Send("Напоминание удалено.")
+			}
+		case StateUpdatingReminderTitle:
+			reminderIDStr := strings.TrimPrefix(data, "update_")
+			reminderID, err := strconv.Atoi(reminderIDStr)
+			if err != nil {
+				return c.Send("Ошибка при разборе ID напоминания.")
+			}
+
+			userState.State = StateUpdatingReminderTitle
+			userState.ReminderID = reminderID
+
+			return c.Send("Введите новое название напоминания:")
 		default:
 			return c.Send("Неизвестное состояние. Используйте /add_reminder для создания напоминания.")
 		}
+		return nil
 	}
 }
 
@@ -222,6 +339,35 @@ func (b *Bot) HandleListReminders() telebot.HandlerFunc {
 		}
 
 		return c.Send(remindersList)
+	}
+}
+
+func (b *Bot) HandleDeleteReminder() telebot.HandlerFunc {
+	return func(c telebot.Context) error {
+		userID := uint(c.Sender().ID)
+
+		user, err := b.userService.GetUserByID(userID)
+		if err != nil {
+			log.Println("Error getting user:", err)
+			return c.Send("Пользователь не найден.")
+		}
+
+		if len(user.Reminders) == 0 {
+			return c.Send("У вас нет напоминаний для удаления.")
+		}
+
+		var buttons [][]telebot.InlineButton
+		for _, reminder := range user.Reminders {
+			buttons = append(buttons, []telebot.InlineButton{
+				{Text: reminder.Title, Data: fmt.Sprintf("delete_%d", reminder.ID)},
+			})
+		}
+
+		b.userStates[c.Chat().ID] = &UserState{State: StateDeletingReminder}
+
+		return c.Send("Выберите напоминание для удаления:", &telebot.ReplyMarkup{
+			InlineKeyboard: buttons,
+		})
 	}
 }
 
