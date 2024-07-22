@@ -90,7 +90,7 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			userState.State = StateSettingTime
 			return c.Send("Выберите время из предложенных вариантов или введите свое.", &telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
-					{{Text: "09:00", Data: "09:00"}, {Text: "12:00", Data: "12:00"}, {Text: "15:00", Data: "15:00"}, {Text: "18:00", Data: "18:00"}},
+					{{Text: "🌅 09:00", Data: "09:00"}, {Text: "☀️ 12:00", Data: "12:00"}, {Text: "☀️ 15:00", Data: "15:00"}, {Text: "🌆 18:00", Data: "18:00"}},
 				},
 			})
 		case StateSettingTime:
@@ -101,7 +101,8 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			}
 			userState.DateTime = fmt.Sprintf("%s %s", userState.DateTime, newTimeStr)
 
-			dueDateTime, err := time.Parse("2006-01-02 15:04", userState.DateTime)
+			// Преобразуйте строку в время в местном времени
+			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, time.Local)
 			if err != nil {
 				return c.Send("Не удалось разобрать дату и время.")
 			}
@@ -118,8 +119,11 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 				return c.Send("Не удалось создать напоминание: " + err.Error())
 			}
 
+			// Запланируйте напоминание
+			b.scheduleReminder(reminder)
+
 			delete(b.userStates, chatID)
-			return c.Send(fmt.Sprintf("Напоминание создано с названием: %s и датой: %s", reminder.Title, reminder.DueDate.Format("2006-01-02 15:04")))
+			return c.Send(fmt.Sprintf("Напоминание создано\nНазвание: %s\nДата: %s", reminder.Title, reminder.DueDate.Format("2006-01-02 15:04")))
 		default:
 			return c.Send("Неизвестное состояние. Используйте /add_reminder для создания напоминания.")
 		}
@@ -158,7 +162,7 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			userState.State = StateSettingTime
 			return c.Send("Выберите время из предложенных вариантов или введите свое.", &telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
-					{{Text: "🌅 09:00", Data: "09:00"}, {Text: "☀️ 12:00", Data: "12:00"}, {Text: " ☀️ 15:00", Data: "15:00"}, {Text: "🌆 18:00", Data: "18:00"}},
+					{{Text: "🌅 09:00", Data: "09:00"}, {Text: "☀️ 12:00", Data: "12:00"}, {Text: "☀️ 15:00", Data: "15:00"}, {Text: "🌆 18:00", Data: "18:00"}},
 				},
 			})
 		case StateSettingTime:
@@ -169,7 +173,7 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			}
 			userState.DateTime = fmt.Sprintf("%s %s", userState.DateTime, newTimeStr)
 
-			dueDateTime, err := time.Parse("2006-01-02 15:04", userState.DateTime)
+			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, time.UTC)
 			if err != nil {
 				return c.Send("Не удалось разобрать дату и время.")
 			}
@@ -185,6 +189,9 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 				log.Println("Error creating reminder:", err)
 				return c.Send("Не удалось создать напоминание: " + err.Error())
 			}
+
+			// Запланируйте напоминание
+			b.scheduleReminder(reminder)
 
 			delete(b.userStates, chatID)
 			return c.Send(fmt.Sprintf("Напоминание создано\nНазвание: %s\nДата: %s", reminder.Title, reminder.DueDate.Format("2006-01-02 15:04")))
@@ -216,4 +223,26 @@ func (b *Bot) HandleListReminders() telebot.HandlerFunc {
 
 		return c.Send(remindersList)
 	}
+}
+
+func (b *Bot) sendReminder(reminder *models.Reminder) {
+	message := fmt.Sprintf("Напоминание: %s\nДата и время: %s", reminder.Title, reminder.DueDate.In(time.Local).Format("2006-01-02 15:04"))
+	chatID := int64(reminder.UserID)
+
+	_, err := b.Bot.Send(&telebot.Chat{ID: chatID}, message)
+	if err != nil {
+		log.Println("Error sending reminder:", err)
+	}
+}
+
+func (b *Bot) scheduleReminder(reminder *models.Reminder) {
+	duration := time.Until(reminder.DueDate)
+	if duration <= 0 {
+		log.Println("Reminder time is in the past")
+		return
+	}
+
+	time.AfterFunc(duration, func() {
+		b.sendReminder(reminder)
+	})
 }
