@@ -333,12 +333,18 @@ func (b *Bot) HandleListReminders() telebot.HandlerFunc {
 			return c.Send("У вас нет напоминаний.")
 		}
 
-		var remindersList string
+		var buttons [][]telebot.InlineButton
 		for _, reminder := range user.Reminders {
-			remindersList += fmt.Sprintf("Название: %s\nДата и время: %s\n\n", reminder.Title, reminder.DueDate.Format("2006-01-02 15:04"))
+			buttons = append(buttons, []telebot.InlineButton{
+				{Text: reminder.Title},
+			})
 		}
 
-		return c.Send(remindersList)
+		return c.Send("Список ваших напоминаний:", &telebot.ReplyMarkup{
+			InlineKeyboard: buttons,
+			RemoveKeyboard: true,
+			ResizeKeyboard: true,
+		})
 	}
 }
 
