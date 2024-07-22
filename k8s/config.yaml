@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reminder-config
+data:
+  DATABASE_HOST: "db"
+  DATABASE_USER: "postgres"
+  DATABASE_PASSWORD: "postgres"
+  DATABASE_DBNAME: "reminder"
+  DATABASE_PORT: "5432"
+  DATABASE_SSLMODE: "disable"
+  SERVER_HOST: "0.0.0.0"
+  SERVER_PORT: "8080"
+  BOT_TOKEN: ""

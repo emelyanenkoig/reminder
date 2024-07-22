@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reminder-bot-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reminder-bot
+  template:
+    metadata:
+      labels:
+        app: reminder-bot
+    spec:
+      containers:
+        - name: reminder-bot
+          image: emelyanenkoig/reminder:1.0
+          envFrom:
+            - configMapRef:
+                name: reminder-config
+          ports:
+            - containerPort: 8080
+          command: ["/app/wait-for-it.sh", "db:5432", "--", "/app/reminder"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reminder-bot-service
+spec:
+  ports:
+    - port: 8080
+  selector:
+    app: reminder-bot
