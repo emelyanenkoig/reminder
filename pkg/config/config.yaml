@@ -1,3 +1,4 @@
+### CONFIG FOR LOCAL DEBUG config.LoadLocalConfig()
 database:
   host: localhost
   user: postgres
@@ -11,4 +12,4 @@ server:
   port: 8080
 
 bot:
-  token: 5621569001:AAF4zzjbRSON21P43bxgM95HLDGpr7WzZV8
+  token: "YOUR TOKEN"

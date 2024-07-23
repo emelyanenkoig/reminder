@@ -25,7 +25,7 @@ services:
       DATABASE_SSLMODE: disable
       SERVER_HOST: 0.0.0.0
       SERVER_PORT: 8080
-      BOT_TOKEN: 5621569001:AAF4zzjbRSON21P43bxgM95HLDGpr7WzZV8
+      BOT_TOKEN: "YOUR TOKEN"
     depends_on:
       - db
     ports:

@@ -61,4 +61,4 @@ type: Opaque
 data:
   BOT_TOKEN: "NTYyMTU2OTAwMTpBQUY0enpqYlJTT04yMVA0M2J4Z005NUhMREdwcjdXelpWOA=="  # Замените на ваш закодированный токен
 
-#  echo -n "5621569001:AAF4zzjbRSON21P43bxgM95HLDGpr7WzZV8" | base64
+#  echo -n "YOUR BOT TOKEN " | base64
