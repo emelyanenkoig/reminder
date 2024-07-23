@@ -142,11 +142,12 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			}
 			userState.DateTime = fmt.Sprintf("%s %s", userState.DateTime, newTimeStr)
 
-			// Преобразуйте строку в время в местном времени
-			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, time.Local)
+			dueDateTime, err := time.Parse("2006-01-02 15:04", userState.DateTime)
 			if err != nil {
 				return c.Send("Не удалось разобрать дату и время.")
 			}
+
+			dueDateTime = dueDateTime.UTC()
 
 			reminder := &models.Reminder{
 				UserID:  userID,
@@ -187,11 +188,14 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			}
 			userState.DateTime = fmt.Sprintf("%s %s", userState.DateTime, newTime)
 
-			// Преобразование строки в время в местном времени
-			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, time.Local)
+			// Преобразование строки в время в UTC
+			dueDateTime, err := time.Parse("2006-01-02 15:04", userState.DateTime)
 			if err != nil {
 				return c.Send("Не удалось разобрать дату и время.")
 			}
+
+			// Преобразуем в UTC
+			dueDateTime = dueDateTime.UTC()
 
 			reminder := &models.Reminder{
 				ID:      uint(userState.ReminderID),
@@ -200,7 +204,7 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 				DueDate: dueDateTime,
 			}
 
-			err = b.reminderService.UpdateReminder(userID, reminder.ID, reminder) //
+			err = b.reminderService.UpdateReminder(userID, reminder.ID, reminder)
 			if err != nil {
 				log.Println("Error updating reminder:", err)
 				return c.Send("Не удалось обновить напоминание: " + err.Error())
@@ -394,7 +398,7 @@ func (b *Bot) sendReminder(reminder *models.Reminder) {
 }
 
 func (b *Bot) scheduleReminder(reminder *models.Reminder) {
-	duration := time.Until(reminder.DueDate)
+	duration := time.Until(reminder.DueDate.UTC())
 	if duration <= 0 {
 		log.Println("Reminder time is in the past")
 		return
