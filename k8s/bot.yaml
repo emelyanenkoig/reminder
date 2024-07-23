@@ -1,10 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: reminder-bot-deployment
-  namespace: reminder
-  labels:
-    app: reminder-bot
+  name: reminder-bot
 spec:
   replicas: 1
   selector:
@@ -17,64 +14,49 @@ spec:
     spec:
       containers:
         - name: reminder-bot
-          image: emelyanenkoig/reminder:1.0
-          ports:
-            - containerPort: 8080
+          image: your-docker-image # Замените на ваш образ
           env:
             - name: DATABASE_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: reminder-config
-                  key: DATABASE_HOST
+              value: "postgres"
             - name: DATABASE_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: reminder-config
-                  key: DATABASE_USER
+              value: "postgres"
             - name: DATABASE_PASSWORD
-              valueFrom:
-                configMapKeyRef:
-                  name: reminder-config
-                  key: DATABASE_PASSWORD
+              value: "postgres"
             - name: DATABASE_DBNAME
-              valueFrom:
-                configMapKeyRef:
-                  name: reminder-config
-                  key: DATABASE_DBNAME
+              value: "reminder"
             - name: DATABASE_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: reminder-config
-                  key: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_SSLMODE
+              value: "disable"
             - name: SERVER_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: reminder-config
-                  key: SERVER_HOST
+              value: "0.0.0.0"
             - name: SERVER_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: reminder-config
-                  key: SERVER_PORT
+              value: "8080"
             - name: BOT_TOKEN
               valueFrom:
-                configMapKeyRef:
-                  name: reminder-config
+                secretKeyRef:
+                  name: bot-secret
                   key: BOT_TOKEN
-          imagePullPolicy: Always
-      restartPolicy: Always
+          ports:
+            - containerPort: 8080
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: reminder-bot-service
-  namespace: reminder
+  name: reminder-bot
 spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
   selector:
     app: reminder-bot
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
-  type: LoadBalancer
 
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bot-secret
+type: Opaque
+data:
+  BOT_TOKEN: "5621569001:AAF4zzjbRSON21P43bxgM95HLDGpr7WzZV8" # Замените на ваш закодированный токен
