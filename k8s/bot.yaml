@@ -2,6 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: reminder-bot-deployment
+  namespace: reminder
+  labels:
+    app: reminder-bot
 spec:
   replicas: 1
   selector:
@@ -15,19 +18,63 @@ spec:
       containers:
         - name: reminder-bot
           image: emelyanenkoig/reminder:1.0
-          envFrom:
-            - configMapRef:
-                name: reminder-config
           ports:
             - containerPort: 8080
-          command: ["/app/wait-for-it.sh", "db:5432", "--", "/app/reminder"]
+          env:
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: reminder-config
+                  key: DATABASE_HOST
+            - name: DATABASE_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: reminder-config
+                  key: DATABASE_USER
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: reminder-config
+                  key: DATABASE_PASSWORD
+            - name: DATABASE_DBNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: reminder-config
+                  key: DATABASE_DBNAME
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: reminder-config
+                  key: DATABASE_PORT
+            - name: SERVER_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: reminder-config
+                  key: SERVER_HOST
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: reminder-config
+                  key: SERVER_PORT
+            - name: BOT_TOKEN
+              valueFrom:
+                configMapKeyRef:
+                  name: reminder-config
+                  key: BOT_TOKEN
+          imagePullPolicy: Always
+      restartPolicy: Always
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: reminder-bot-service
+  namespace: reminder
 spec:
-  ports:
-    - port: 8080
   selector:
     app: reminder-bot
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
+
