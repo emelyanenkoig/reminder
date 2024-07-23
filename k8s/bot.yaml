@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: reminder-bot
+  namespace: reminder
 spec:
   replicas: 1
   selector:
@@ -37,8 +38,14 @@ spec:
                 secretKeyRef:
                   name: bot-secret
                   key: BOT_TOKEN
-          ports:
-            - containerPort: 8080
+          volumeMounts:
+            - name: tz-config
+              mountPath: /etc/localtime
+              readOnly: true
+      volumes:
+        - name: tz-config
+          hostPath:
+            path: /etc/localtime
 ---
 apiVersion: v1
 kind: Service
