@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: reminder-bot
-          image: emelyanenkoig/reminder:1.0-amd64 # Замените на ваш образ
+          image: emelyanenkoig/reminder:1.1-amd64 # Замените на ваш образ
           env:
             - name: DATABASE_HOST
               value: "postgres"
