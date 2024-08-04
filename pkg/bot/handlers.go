@@ -394,6 +394,15 @@ func (b *Bot) sendReminder(reminder *models.Reminder) {
 }
 
 func (b *Bot) scheduleReminder(reminder *models.Reminder) {
+	// TODO добавить возможность установки временного пояса
+	loc, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		log.Println("Error loading location:", err)
+		return
+	}
+
+	reminder.DueDate = reminder.DueDate.In(loc)
+
 	duration := time.Until(reminder.DueDate)
 	if duration <= 0 {
 		log.Println("Reminder time is in the past")
