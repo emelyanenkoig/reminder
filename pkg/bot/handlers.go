@@ -22,10 +22,13 @@ const (
 	StateSettingDate      = "setting_date"
 	StateSettingTime      = "setting_time"
 	StateDeletingReminder = "deleting_reminder"
+	StateViewingReminder  = "viewing_reminder"
 
 	StateUpdatingReminderTitle = "updating_reminder_title"
 	StateUpdatingReminderDate  = "updating_reminder_date"
 	StateUpdatingReminderTime  = "updating_reminder_time"
+
+	StandardError = "❗️*Неизвестное состояние* ❗\nИспользуйте /add для создания напоминания"
 )
 
 func (b *Bot) HandleStart() telebot.HandlerFunc {
@@ -104,7 +107,7 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 		userID := uint(c.Sender().ID)
 		userState, ok := b.userStates[chatID]
 		if !ok {
-			return c.Send("Неизвестное состояние. Используйте /add для создания напоминания.")
+			return c.Send(StandardError, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 		}
 
 		switch userState.State {
@@ -113,8 +116,10 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			userState.State = StateSettingDate
 			return c.EditOrSend("Когда вы хотите установить напоминание?", &telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
-					{{Text: "Сегодня", Data: "today"}, {Text: "Завтра", Data: "tomorrow"}, {Text: "Установить дату", Data: "set_date"}},
+					{{Text: "Сегодня", Data: "today"}, {Text: "Завтра", Data: "tomorrow"}},
+					{{Text: "Установить дату", Data: "set_date"}},
 				},
+				RemoveKeyboard: true,
 			})
 		case StateSettingDate:
 			dateStr := c.Text()
@@ -126,13 +131,12 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			userState.State = StateSettingTime
 			return c.Send("Выберите время из предложенных вариантов или введите свое.", &telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
-					{
-						{Text: "🌅 09:00", Data: "09:00"},
-						{Text: "☀️ 12:00", Data: "12:00"},
-						{Text: "☀️ 15:00", Data: "15:00"},
-						{Text: "🌆 18:00", Data: "18:00"},
-						{Text: "🌃 21:00", Data: "18:00"}},
+					{{Text: "🌅 09:00", Data: "09:00"}, {Text: "☀️ 12:00", Data: "12:00"}},
+					{{Text: "☀️ 15:00", Data: "15:00"}, {Text: "🌆 18:00", Data: "18:00"}},
+					{{Text: "🌃 21:00", Data: "21:00"}},
 				},
+				RemoveKeyboard: true,
+				ResizeKeyboard: true,
 			})
 		case StateSettingTime:
 			newTimeStr := c.Text()
@@ -213,7 +217,7 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			return c.Send(fmt.Sprintf("Напоминание обновлено 🔄:\n%s", reminder.Title))
 
 		default:
-			return c.Send("Неизвестное состояние. Используйте /add для создания напоминания.")
+			return c.Send(StandardError, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 		}
 	}
 }
@@ -222,6 +226,7 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
 		chatID := c.Chat().ID
 		data := c.Callback().Data
+		userID := uint(c.Sender().ID)
 
 		if data == "" {
 			return c.Send("Неизвестная ошибка. Попробуйте снова.")
@@ -229,7 +234,7 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 
 		userState, ok := b.userStates[chatID]
 		if !ok {
-			return c.Send("Неизвестное состояние. Используйте /add для создания напоминания.")
+			return c.Send(StandardError, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 		}
 
 		switch userState.State {
@@ -250,14 +255,12 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			userState.State = StateSettingTime
 			return c.EditOrSend("Выберите время из предложенных вариантов или введите свое.", &telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
-					{
-						{Text: "🌅 09:00", Data: "09:00"},
-						{Text: "☀️ 12:00", Data: "12:00"},
-						{Text: "☀️ 15:00", Data: "15:00"},
-						{Text: "🌆 18:00", Data: "18:00"},
-						{Text: "🌃 21:00", Data: "18:00"},
-					},
-				}, OneTimeKeyboard: true,
+					{{Text: "🌅 09:00", Data: "09:00"}, {Text: "☀️ 12:00", Data: "12:00"}},
+					{{Text: "☀️ 15:00", Data: "15:00"}, {Text: "🌆 18:00", Data: "18:00"}},
+					{{Text: "🌃 21:00", Data: "21:00"}},
+				},
+				RemoveKeyboard: true,
+				ResizeKeyboard: true,
 			})
 		case StateSettingTime:
 			newTimeStr := data
@@ -317,8 +320,24 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			userState.ReminderID = reminderID
 
 			return c.Send("🔄 Введите новое название напоминания:")
+		case StateViewingReminder:
+			if strings.HasPrefix(data, "view_") {
+				reminderIDStr := strings.TrimPrefix(data, "view_")
+				reminderID, err := strconv.Atoi(reminderIDStr)
+				if err != nil {
+					return c.Send("Ошибка при разборе ID напоминания.")
+				}
+
+				reminder, err := b.reminderService.GetReminderByID(uint(reminderID), userID)
+				if err != nil {
+					return c.Send("Не удалось найти напоминание.")
+				}
+
+				message := fmt.Sprintf("📚 <b>Напоминание:</b> %s\n\n⏰ <b>Напомню Вам:</b> %s", reminder.Title, reminder.DueDate.In(time.Local).Format("2006-01-02 15:04"))
+				return c.Send(message, &telebot.SendOptions{ParseMode: telebot.ModeHTML})
+			}
 		default:
-			return c.Send("Неизвестное состояние. Используйте /add для создания напоминания.")
+			return c.Send(StandardError, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 		}
 		return nil
 	}
@@ -328,6 +347,7 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 func (b *Bot) HandleListReminders() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
 		userID := uint(c.Sender().ID)
+		chatID := c.Chat().ID
 
 		user, err := b.userService.GetUserByID(userID)
 		if err != nil {
@@ -342,14 +362,16 @@ func (b *Bot) HandleListReminders() telebot.HandlerFunc {
 		var buttons [][]telebot.InlineButton
 		for _, reminder := range user.Reminders {
 			buttons = append(buttons, []telebot.InlineButton{
-				{Text: reminder.Title},
+				{Text: reminder.Title, Data: fmt.Sprintf("view_%d", reminder.ID)},
 			})
 		}
+
+		// Устанавливаем состояние пользователя для просмотра напоминаний
+		b.userStates[chatID] = &UserState{State: StateViewingReminder}
 
 		return c.Send("📚 Список ваших напоминаний:", &telebot.ReplyMarkup{
 			InlineKeyboard: buttons,
 			RemoveKeyboard: true,
-			ResizeKeyboard: true,
 		})
 	}
 }
