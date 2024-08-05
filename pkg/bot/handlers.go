@@ -68,7 +68,7 @@ func (b *Bot) HandleGetUser() telebot.HandlerFunc {
 func (b *Bot) HandleAddReminder() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
 		b.userStates[c.Chat().ID] = &UserState{State: StateCreatingTitle}
-		return c.Send("Введите название напоминания:")
+		return c.Send("⏰ Введите название напоминания:")
 	}
 }
 
@@ -237,14 +237,20 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			return c.Send(StandardError, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 		}
 
+		loc, err := time.LoadLocation("Europe/Moscow")
+		if err != nil {
+			log.Println("Error loading location:", err)
+			return c.Send("Не удалось загрузить временную зону.")
+		}
+
 		switch userState.State {
 		case StateSettingDate:
 			var dateStr string
 			switch data {
 			case "today":
-				dateStr = time.Now().Format("2006-01-02")
+				dateStr = time.Now().In(loc).Format("2006-01-02")
 			case "tomorrow":
-				dateStr = time.Now().AddDate(0, 0, 1).Format("2006-01-02")
+				dateStr = time.Now().In(loc).AddDate(0, 0, 1).Format("2006-01-02")
 			case "set_date":
 				userState.State = StateSettingDate
 				return c.Send("Введите дату (ГГГГ-ММ-ДД).")
@@ -270,7 +276,7 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			}
 			userState.DateTime = fmt.Sprintf("%s %s", userState.DateTime, newTimeStr)
 
-			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, time.UTC)
+			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, loc)
 			if err != nil {
 				return c.Send("Не удалось разобрать дату и время.")
 			}
@@ -416,7 +422,6 @@ func (b *Bot) sendReminder(reminder *models.Reminder) {
 }
 
 func (b *Bot) scheduleReminder(reminder *models.Reminder) {
-	// TODO добавить возможность установки временного пояса
 	loc, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
 		log.Println("Error loading location:", err)
