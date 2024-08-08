@@ -1,14 +1,13 @@
-# Используем официальный образ Go для сборки
+# Этап сборки
 FROM golang:1.22.1-alpine AS builder
 
-# Устанавливаем необходимые зависимости
-RUN apk update && apk add --no-cache git
-
-# Устанавливаем рабочую директорию внутри контейнера
+# Устанавливаем рабочую директорию для сборки
 WORKDIR /app
 
-# Копируем файлы go.mod и go.sum и загружаем зависимости
+# Копируем go mod и go sum файлы
 COPY go.mod go.sum ./
+
+# Загружаем зависимости
 RUN go mod download
 
 # Копируем остальной исходный код приложения
@@ -20,8 +19,11 @@ RUN GOARCH=amd64 GOOS=linux go build -o reminder .
 # Используем минимальный образ для запуска приложения
 FROM alpine:latest
 
-# Устанавливаем сертификаты и другие зависимости времени выполнения
-RUN apk --no-cache add ca-certificates
+# Устанавливаем сертификаты и временную зону
+RUN apk --no-cache add ca-certificates tzdata
+
+# Настраиваем временную зону на Moscow
+ENV TZ=Europe/Moscow
 
 # Устанавливаем рабочую директорию для runtime образа
 WORKDIR /root/
@@ -34,3 +36,4 @@ EXPOSE 8080
 
 # Команда для запуска приложения
 CMD ["./reminder"]
+
