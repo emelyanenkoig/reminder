@@ -39,7 +39,9 @@ spec:
                   key: BOT_TOKEN
           ports:
             - containerPort: 8080  # Порт, на котором работает ваш бот
+              name: http  # Уникальное имя порта для сервисов
             - containerPort: 2112  # Порт, на котором экспонируются метрики для Prometheus
+              name: metrics  # Уникальное имя порта для сервисов
 ---
 apiVersion: v1
 kind: Service
@@ -50,8 +52,10 @@ spec:
   ports:
     - port: 8080
       targetPort: 8080
+      name: http  # Уникальное имя порта для сервисов
     - port: 2112
       targetPort: 2112  # Соответствие порта сервиса порту контейнера
+      name: metrics  # Уникальное имя порта для сервисов
   selector:
     app: reminder-bot
 
