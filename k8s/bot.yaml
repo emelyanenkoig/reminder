@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: reminder-bot
-          image: emelyanenkoig/reminder:1.0-amd64 # Замените на ваш образ
+          image: emelyanenkoig/reminder:1.0-amd64  # Замените на ваш образ
           env:
             - name: DATABASE_HOST
               value: "postgres"
@@ -38,7 +38,8 @@ spec:
                   name: bot-secret
                   key: BOT_TOKEN
           ports:
-            - containerPort: 8080
+            - containerPort: 8080  # Порт, на котором работает ваш бот
+            - containerPort: 2112  # Порт, на котором экспонируются метрики для Prometheus
 ---
 apiVersion: v1
 kind: Service
@@ -48,6 +49,9 @@ spec:
   type: ClusterIP
   ports:
     - port: 8080
+      targetPort: 8080
+    - port: 2112
+      targetPort: 2112  # Соответствие порта сервиса порту контейнера
   selector:
     app: reminder-bot
 
@@ -62,3 +66,18 @@ data:
   BOT_TOKEN: "YOUR TOKEN"  # Замените на ваш закодированный токен
 
 #  echo -n "YOUR BOT TOKEN " | base64
+
+---
+
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: reminder-bot-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: reminder-bot
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80

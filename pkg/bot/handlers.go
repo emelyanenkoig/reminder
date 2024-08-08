@@ -77,6 +77,14 @@ const (
 
 func (b *Bot) HandleStart() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
+		start := time.Now()
+		endpoint := "/start"
+		defer func() {
+			duration := time.Since(start).Seconds()
+			requestDuration.WithLabelValues(endpoint).Observe(duration)
+			requestCounter.WithLabelValues(endpoint).Inc()
+		}()
+
 		userID := uint(c.Sender().ID)
 		newUser := &models.User{
 			ID:        userID,
@@ -87,6 +95,7 @@ func (b *Bot) HandleStart() telebot.HandlerFunc {
 		err := b.userService.CreateUser(newUser)
 		if err != nil {
 			log.Println("Error creating user:", err)
+			errorCounter.WithLabelValues(endpoint).Inc()
 			return c.Send(ErrorCreateUser + err.Error())
 		}
 
@@ -96,11 +105,20 @@ func (b *Bot) HandleStart() telebot.HandlerFunc {
 
 func (b *Bot) HandleGetUser() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
+		start := time.Now()
+		endpoint := "/get"
+		defer func() {
+			duration := time.Since(start).Seconds()
+			requestDuration.WithLabelValues(endpoint).Observe(duration)
+			requestCounter.WithLabelValues(endpoint).Inc()
+		}()
+
 		userID := uint(c.Sender().ID)
 
 		user, err := b.userService.GetUserByID(userID)
 		if err != nil {
 			log.Println("Error getting user:", err)
+			errorCounter.WithLabelValues(endpoint).Inc()
 			return c.Send(ErrorGetUser, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 		}
 
@@ -111,18 +129,40 @@ func (b *Bot) HandleGetUser() telebot.HandlerFunc {
 
 func (b *Bot) HandleAddReminder() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
+		start := time.Now()
+		endpoint := "/add"
+		defer func() {
+			duration := time.Since(start).Seconds()
+			requestDuration.WithLabelValues(endpoint).Observe(duration)
+			requestCounter.WithLabelValues(endpoint).Inc()
+		}()
+
 		b.userStates[c.Chat().ID] = &UserState{State: StateCreatingTitle}
-		return c.Send(MessageEnterNameOfReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
+		err := c.Send(MessageEnterNameOfReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
+		if err != nil {
+			log.Println("Error sending message:", err)
+			errorCounter.WithLabelValues(endpoint).Inc()
+		}
+		return err
 	}
 }
 
 func (b *Bot) HandleUpdateReminder() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
+		start := time.Now()
+		endpoint := "/update"
+		defer func() {
+			duration := time.Since(start).Seconds()
+			requestDuration.WithLabelValues(endpoint).Observe(duration)
+			requestCounter.WithLabelValues(endpoint).Inc()
+		}()
+
 		userID := uint(c.Sender().ID)
 
 		user, err := b.userService.GetUserByID(userID)
 		if err != nil {
 			log.Println("Error getting user:", err)
+			errorCounter.WithLabelValues(endpoint).Inc()
 			return c.Send(ErrorGetUser, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 		}
 
@@ -139,14 +179,27 @@ func (b *Bot) HandleUpdateReminder() telebot.HandlerFunc {
 			})
 		}
 
-		return c.Send(MessageChooseReminderForUpdate, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
+		err = c.Send(MessageChooseReminderForUpdate, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
 			InlineKeyboard: buttons,
 		})
+		if err != nil {
+			log.Println("Error sending message:", err)
+			errorCounter.WithLabelValues(endpoint).Inc()
+		}
+		return err
 	}
 }
 
 func (b *Bot) HandleText() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
+		start := time.Now()
+		endpoint := "/text"
+		defer func() {
+			duration := time.Since(start).Seconds()
+			requestDuration.WithLabelValues(endpoint).Observe(duration)
+			requestCounter.WithLabelValues(endpoint).Inc()
+		}()
+
 		chatID := c.Chat().ID
 		userID := uint(c.Sender().ID)
 		userState, ok := b.userStates[chatID]
@@ -158,22 +211,28 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 		case StateCreatingTitle:
 			userState.Title = c.Text()
 			userState.State = StateSettingDate
-			return c.EditOrSend(MessageChooseDateOfReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
+			err := c.EditOrSend(MessageChooseDateOfReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
 					{{Text: KeyboardToday, Data: "today"}, {Text: KeyboardTomorrow, Data: "tomorrow"}},
 					{{Text: KeyboardSetDate, Data: "set_date"}},
 				},
 				RemoveKeyboard: true,
 			})
+			if err != nil {
+				log.Println("Error sending message:", err)
+				errorCounter.WithLabelValues(endpoint).Inc()
+			}
+			return err
 		case StateSettingDate:
 			dateStr := c.Text()
 			_, err := time.Parse("2006-01-02", dateStr)
 			if err != nil {
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorInvalidData, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 			userState.DateTime = dateStr
 			userState.State = StateSettingTime
-			return c.Send(MessageChooseTimeOfReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
+			err = c.Send(MessageChooseTimeOfReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
 				InlineKeyboard: [][]telebot.InlineButton{
 					{{Text: KeyboardTime9, Data: "09:00"}, {Text: KeyboardTime12, Data: "12:00"}},
 					{{Text: KeyboardTime15, Data: "15:00"}, {Text: KeyboardTime18, Data: "18:00"}},
@@ -182,16 +241,23 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 				RemoveKeyboard: true,
 				ResizeKeyboard: true,
 			})
+			if err != nil {
+				log.Println("Error sending message:", err)
+				errorCounter.WithLabelValues(endpoint).Inc()
+			}
+			return err
 		case StateSettingTime:
 			newTimeStr := c.Text()
 			_, err := time.Parse("15:04", newTimeStr)
 			if err != nil {
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorInvalidTime, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 			userState.DateTime = fmt.Sprintf("%s %s", userState.DateTime, newTimeStr)
 
 			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, time.Local)
 			if err != nil {
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorInvalidDateTimeCompilation, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 
@@ -204,6 +270,7 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			err = b.reminderService.CreateReminder(reminder)
 			if err != nil {
 				log.Println("Error creating reminder:", err)
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorCreateReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 
@@ -220,6 +287,7 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			newDate := c.Text()
 			_, err := time.Parse("2006-01-02", newDate)
 			if err != nil {
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorInvalidData, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 			userState.DateTime = newDate
@@ -229,12 +297,14 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 			newTime := c.Text()
 			_, err := time.Parse("15:04", newTime)
 			if err != nil {
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorInvalidTime, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 			userState.DateTime = fmt.Sprintf("%s %s", userState.DateTime, newTime)
 
 			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, time.Local)
 			if err != nil {
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorInvalidDateTimeCompilation, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 
@@ -245,13 +315,13 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 				DueDate: dueDateTime,
 			}
 
-			err = b.reminderService.UpdateReminder(userID, reminder.ID, reminder) //
+			err = b.reminderService.UpdateReminder(userID, reminder.ID, reminder)
 			if err != nil {
 				log.Println("Error updating reminder:", err)
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorUpdateReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 
-			// Запланируйте обновленное напоминание
 			b.scheduleReminder(reminder)
 
 			delete(b.userStates, chatID)
@@ -265,6 +335,14 @@ func (b *Bot) HandleText() telebot.HandlerFunc {
 
 func (b *Bot) HandleCallback() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
+		start := time.Now()
+		endpoint := "callback"
+		defer func() {
+			duration := time.Since(start).Seconds()
+			requestDuration.WithLabelValues(endpoint).Observe(duration)
+			requestCounter.WithLabelValues(endpoint).Inc()
+		}()
+
 		chatID := c.Chat().ID
 		data := c.Callback().Data
 		userID := uint(c.Sender().ID)
@@ -280,6 +358,7 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 
 		loc, err := time.LoadLocation("Europe/Moscow")
 		if err != nil {
+			errorCounter.WithLabelValues(endpoint).Inc()
 			log.Println("Error loading location:", err)
 			return c.Send(ErrorLoadTimezone)
 		}
@@ -313,12 +392,14 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			newTimeStr := data
 			_, err := time.Parse("15:04", newTimeStr)
 			if err != nil {
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorInvalidTime, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 			userState.DateTime = fmt.Sprintf("%s %s", userState.DateTime, newTimeStr)
 
 			dueDateTime, err := time.ParseInLocation("2006-01-02 15:04", userState.DateTime, loc)
 			if err != nil {
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorInvalidDateTimeCompilation, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 
@@ -331,6 +412,7 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			err = b.reminderService.CreateReminder(reminder)
 			if err != nil {
 				log.Println("Error creating reminder:", err)
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorCreateReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 
@@ -344,11 +426,13 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 				reminderIDStr := strings.TrimPrefix(data, "delete_")
 				reminderID, err := strconv.Atoi(reminderIDStr)
 				if err != nil {
+					errorCounter.WithLabelValues(endpoint).Inc()
 					return c.Send(ErrorParseIdOfReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 				}
 
 				err = b.reminderService.DeleteReminder(userID, uint(reminderID))
 				if err != nil {
+					errorCounter.WithLabelValues(endpoint).Inc()
 					return c.Send(ErrorFindReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 				}
 
@@ -359,6 +443,7 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 			reminderIDStr := strings.TrimPrefix(data, "update_")
 			reminderID, err := strconv.Atoi(reminderIDStr)
 			if err != nil {
+				errorCounter.WithLabelValues(endpoint).Inc()
 				return c.Send(ErrorParseIdOfReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 			}
 
@@ -371,11 +456,13 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 				reminderIDStr := strings.TrimPrefix(data, "view_")
 				reminderID, err := strconv.Atoi(reminderIDStr)
 				if err != nil {
+					errorCounter.WithLabelValues(endpoint).Inc()
 					return c.Send(ErrorParseIdOfReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 				}
 
 				reminder, err := b.reminderService.GetReminderByID(uint(reminderID), userID)
 				if err != nil {
+					errorCounter.WithLabelValues(endpoint).Inc()
 					return c.Send(ErrorFindReminder, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 				}
 
@@ -392,12 +479,21 @@ func (b *Bot) HandleCallback() telebot.HandlerFunc {
 // Обработчик команды /list
 func (b *Bot) HandleListReminders() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
+		start := time.Now()
+		endpoint := "/list"
+		defer func() {
+			duration := time.Since(start).Seconds()
+			requestDuration.WithLabelValues(endpoint).Observe(duration)
+			requestCounter.WithLabelValues(endpoint).Inc()
+		}()
+
 		userID := uint(c.Sender().ID)
 		chatID := c.Chat().ID
 
 		user, err := b.userService.GetUserByID(userID)
 		if err != nil {
 			log.Println("Error getting user:", err)
+			errorCounter.WithLabelValues(endpoint).Inc()
 			return c.Send(ErrorGetUser, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 		}
 
@@ -412,23 +508,35 @@ func (b *Bot) HandleListReminders() telebot.HandlerFunc {
 			})
 		}
 
-		// Устанавливаем состояние пользователя для просмотра напоминаний
 		b.userStates[chatID] = &UserState{State: StateViewingReminder}
-
-		return c.Send(MessageListReminders, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
+		err = c.Send(MessageListReminders, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
 			InlineKeyboard: buttons,
 			RemoveKeyboard: true,
 		})
+		if err != nil {
+			log.Println("Error sending message:", err)
+			errorCounter.WithLabelValues(endpoint).Inc()
+		}
+		return err
 	}
 }
 
 func (b *Bot) HandleDeleteReminder() telebot.HandlerFunc {
 	return func(c telebot.Context) error {
+		start := time.Now()
+		endpoint := "/delete"
+		defer func() {
+			duration := time.Since(start).Seconds()
+			requestDuration.WithLabelValues(endpoint).Observe(duration)
+			requestCounter.WithLabelValues(endpoint).Inc()
+		}()
+
 		userID := uint(c.Sender().ID)
 
 		user, err := b.userService.GetUserByID(userID)
 		if err != nil {
 			log.Println("Error getting user:", err)
+			errorCounter.WithLabelValues(endpoint).Inc()
 			return c.Send(ErrorGetUser, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 		}
 
@@ -444,10 +552,14 @@ func (b *Bot) HandleDeleteReminder() telebot.HandlerFunc {
 		}
 
 		b.userStates[c.Chat().ID] = &UserState{State: StateDeletingReminder}
-
-		return c.Send(MessageChooseReminderForDelete, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
+		err = c.Send(MessageChooseReminderForDelete, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2}, &telebot.ReplyMarkup{
 			InlineKeyboard: buttons,
 		})
+		if err != nil {
+			log.Println("Error sending message:", err)
+			errorCounter.WithLabelValues(endpoint).Inc()
+		}
+		return err
 	}
 }
 

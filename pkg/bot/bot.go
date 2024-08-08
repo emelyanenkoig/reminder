@@ -5,6 +5,7 @@ import (
 	"emelyanenkoig/reminder/pkg/services"
 	"gopkg.in/telebot.v3"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,7 @@ type Bot struct {
 	userService     *services.UserService
 	reminderService *services.ReminderService
 	userStates      map[int64]*UserState
+	mu              sync.RWMutex // Mutex для синхронизации доступа к userStates
 }
 
 // NewBot создает новый экземпляр бота
@@ -50,6 +52,7 @@ func NewBot(userService *services.UserService, reminderService *services.Reminde
 
 // Start запускает бота
 func (b *Bot) Start() {
+	startMetricsServer()
 	log.Println("Starting bot...")
 	b.Bot.Start()
 }
