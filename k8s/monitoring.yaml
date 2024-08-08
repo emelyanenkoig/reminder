@@ -81,11 +81,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grafana-service
+  namespace: reminder
 spec:
-  type: NodePort  # Вы можете использовать LoadBalancer или Ingress для внешнего доступа
+  type: LoadBalancer
   ports:
     - port: 3000
-      nodePort: 32000  # Укажите порт для внешнего доступа
+      targetPort: 3000
   selector:
     app: grafana
 ---
