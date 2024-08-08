@@ -34,9 +34,11 @@ kind: Service
 metadata:
   name: prometheus-service
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - port: 9090
+      targetPort: 9090
+      nodePort: 32001  # Укажите порт для доступа снаружи
   selector:
     app: prometheus
 
